@@ -48,6 +48,38 @@ local function get_query(lang)
     return nil
 end
 
+local function get_parent_nodes(node)
+    local parents = {}
+    local count  = 1
+
+    -- local parent = node:parent()
+
+    while (node ~= nil) do
+        print("Adding node to parents: ")
+        i(node)
+        parents[count] = node
+        node = node:parent()
+        count = count + 1
+    end
+
+    print("Returning parents nodes: ")
+    i(parents)
+
+    return parents
+end
+
+local function search_node(parents, cNode)
+    -- FIXME: Comparing parent node is wrong implemented
+    -- Compare rows and colums from nodes that are parents of the base node to identify the corrent parent nodes
+    for _, node in pairs(parents) do
+        if (cNode == node) then
+            return true
+        end
+    end
+
+    return false
+end
+
 --━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━--
 --	Main function--
 --━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━--
@@ -64,14 +96,20 @@ M.get_debug = function ()
     local node = ts_utils.get_node_at_cursor()
     local sRow, sCol, eRow, eCol = node:range()
 
+    -- local parent_node = get_parent_nodes(node)
     local query = get_query(lang)
+
+    local parents = get_parent_nodes(node)
 
     local coment = ""
     for id, capture, _ in query:iter_captures(root, bufnm, 0, sRow+1) do
-        local node_text = ts_utils.get_node_text(capture, bufnm)
-        -- local name = query.captures[id] -- name of the capture in the query
+        if search_node(parents, capture) then
+            local node_text = ts_utils.get_node_text(capture, bufnm)
 
-        coment = coment.."#"..node_text[1]
+            coment = coment.."#"..node_text[1]
+        else
+            print("not allowed")
+        end
     end
 
     insert_coment(sRow, sCol, coment, lang)

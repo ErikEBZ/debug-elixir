@@ -15,4 +15,12 @@ defmodule Test do
 
     IO.puts(var2)
   end
+
+  def fun3(var3) do
+    nil
+  end
+
+  def fun4(var4) do
+    nil
+  end
 end
