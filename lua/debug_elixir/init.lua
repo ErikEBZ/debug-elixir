@@ -26,58 +26,66 @@ local function insert_coment(row, col, coment, lang)
     vim.api.nvim_buf_set_lines(0, row, row, false, {coment})
 end
 
-local function get_query(lang)
-    if lang == "elixir" then
-        return vim.treesitter.parse_query(lang,[[
-        (call
-        target: (identifier) @function.identifier
-        (arguments (alias) @function.argument))
+-- local function get_query(lang)
+--     if lang == "elixir" then
+--         return vim.treesitter.parse_query(lang,[[
+--         (call
+--         target: (identifier) @function.identifier
+--         (arguments (alias) @function.argument))
+-- 
+--         (call 
+--         target: (identifier)
+--         (arguments (call target: (identifier) @function.identifier))
+--         )
+-- 
+--         (call
+--         target: (identifier) @function.identifier (#eq? @function.identifier "if")
+--         ) 
+--             ]]
+--         )
+--     end
+-- 
+--     return nil
+-- end
 
-        (call 
-        target: (identifier)
-        (arguments (call target: (identifier) @function.identifier))
-        )
+local function get_partial_coment(type, text, node, bufnm)
+    if type == "identifier" then
+        if text == "if" or text == "case" then
+            return text
+        end
 
-        (call
-        target: (identifier) @function.identifier (#eq? @function.identifier "if")
-        ) 
-            ]]
-        )
+        if text == "def" or text == "defp" then
+            local sibling = node:next_sibling()
+            local sibling_child = sibling:child(0)
+            local target = sibling_child:child(0)
+
+            local fun_name = ts_utils.get_node_text(target, bufnm)[1]
+
+            return fun_name
+        end
+
+        if text == "defmodule" then
+            return text
+        end
     end
 
     return nil
 end
 
-local function get_parent_nodes(node)
-    local parents = {}
-    local count  = 1
+local function traverse_node(node, bufnm)
+    local cmnt = ""
+    for child_node, child_name in node:iter_children() do
+        local text = ts_utils.get_node_text(child_node, bufnm)[1]
 
-    -- local parent = node:parent()
+        local pComent = get_partial_coment(child_node:type(), text, child_node)
 
-    while (node ~= nil) do
-        print("Adding node to parents: ")
-        i(node)
-        parents[count] = node
-        node = node:parent()
-        count = count + 1
-    end
-
-    print("Returning parents nodes: ")
-    i(parents)
-
-    return parents
-end
-
-local function search_node(parents, cNode)
-    -- FIXME: Comparing parent node is wrong implemented
-    -- Compare rows and colums from nodes that are parents of the base node to identify the corrent parent nodes
-    for _, node in pairs(parents) do
-        if (cNode == node) then
-            return true
+        if pComent ~= nil then
+            cmnt = pComent..cmnt
         end
+
     end
 
-    return false
+    return cmnt
 end
 
 --━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━--
@@ -87,32 +95,27 @@ M.get_debug = function ()
     local bufnm = vim.api.nvim_get_current_buf()
     local lang = vim.bo.filetype
 
-    -- Parsing the fil
-    local parser = vim.treesitter.get_parser(bufnm, lang)
-    local tree = parser:parse()
-    local root = tree[1]:root()
-
-    -- Getting the base node
     local node = ts_utils.get_node_at_cursor()
+    local parent = node:parent()
     local sRow, sCol, eRow, eCol = node:range()
 
-    -- local parent_node = get_parent_nodes(node)
-    local query = get_query(lang)
+    local cmnt = ""
+    while (node:parent() ~= nil) do
+        local node_type = node:type()
+        local node_text = ts_utils.get_node_text(node, bufnm)[1]
 
-    local parents = get_parent_nodes(node)
-
-    local coment = ""
-    for id, capture, _ in query:iter_captures(root, bufnm, 0, sRow+1) do
-        if search_node(parents, capture) then
-            local node_text = ts_utils.get_node_text(capture, bufnm)
-
-            coment = coment.."#"..node_text[1]
-        else
-            print("not allowed")
+        if (node_type == "call") then
+            local info = traverse_node(node, bufnm)
+            if info ~= "" then
+                cmnt = "#"..info..cmnt
+            end
         end
+
+        node = parent
+        parent = node:parent()
     end
 
-    insert_coment(sRow, sCol, coment, lang)
+    insert_coment(sRow, sCol, cmnt, lang)
 end
 
 return M
