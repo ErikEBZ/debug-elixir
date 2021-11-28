@@ -21,6 +21,6 @@ defmodule Test do
   end
 
   def fun4(var4) do
-    nil
+    IO.puts(var4)
   end
 end
