@@ -1,7 +1,9 @@
 defmodule Test do
   defp fun1(var1) do
     if var1 == "" do 
-      IO.puts(var1)
+      if var1 == " " do
+        IO.puts(var1)
+      end
     end
   end
 

@@ -47,35 +47,31 @@ local function get_debug_msg()
 
     local query = vim.treesitter.parse_query(lang,[[
             (call
-                target: (identifier) @identifier
-                (arguments (alias) @module_name))
+                target: (identifier) @function.identifier
+                (arguments (alias) @function.argument))
 
             (call 
               target: (identifier)
-              (arguments (call target: (identifier) @identifier))
+              (arguments (call target: (identifier) @function.identifier))
             )
+
+            (call
+              target: (identifier) @function.identifier (#eq? @function.identifier "if")
+            ) 
         ]]
     )
 
-    for id, match, _ in query:iter_matches(root, bufnm) do
-        print("iter")
-
+    local coment = ""
+    for id, capture, _ in query:iter_captures(root, bufnm) do
+        local node_text = ts_utils.get_node_text(capture, bufnm)
         local name = query.captures[id] -- name of the capture in the query
-        print("name of the capture in the query: "..name)
 
-        print("Size of match is: "..#match)
-        for index, data in pairs(match) do
-            print(ts_utils.get_node_text(data, bufnm)[1])
-            print("Type of node: "..data:type())
-        end
-
-        print("-------------------")
-
---[[ local match_type = ts_utils.get_node_text(match[1], bufnm)[1] -- Gets the type def
-
-print(match_type)
-        check_case(match_type, match) ]]
+        --[[ print("Capture name: "..name)
+        print("node text: "..node_text[1]) ]]
+        coment = coment.."#"..node_text[1]
     end
+
+    print(coment)
 end
 
 get_debug_msg()
